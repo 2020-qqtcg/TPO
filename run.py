@@ -72,7 +72,7 @@ if __name__ == "__main__":
     set_random(args.seed)
 
     # Construct model name and engine
-    model_name = f"local:{args.server_model}"
+    model_name = args.model_name
     llm_engine = tg.get_engine(
         model_name,
         base_url=f"http://{args.ip}:{args.port}/v1",

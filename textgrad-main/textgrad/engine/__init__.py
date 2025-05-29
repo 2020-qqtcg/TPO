@@ -1,3 +1,5 @@
+from torch._inductor.codecache import LocalCache
+
 from .base import EngineLM, CachedEngine
 from textgrad.engine_experimental.litellm import LiteLLMEngine
 
@@ -20,13 +22,19 @@ __MULTIMODAL_ENGINES__ = ["gpt-4-turbo",
                           "gpt-4-turbo-2024-04-09",
                           ]
 
+from .local_vertex import LocalVertex
+from .openai import LocalChatOpenAI
+
+
 def _check_if_multimodal(engine_name: str):
     return any([name == engine_name for name in __MULTIMODAL_ENGINES__])
+
 
 def validate_multimodal_engine(engine):
     if not _check_if_multimodal(engine.model_string):
         raise ValueError(
             f"The engine provided is not multimodal. Please provide a multimodal engine, one of the following: {__MULTIMODAL_ENGINES__}")
+
 
 def get_engine(engine_name: str, **kwargs) -> EngineLM:
     if engine_name in __ENGINE_NAME_SHORTCUTS__:
@@ -42,6 +50,12 @@ def get_engine(engine_name: str, **kwargs) -> EngineLM:
     if engine_name.startswith("experimental:"):
         engine_name = engine_name.split("experimental:")[1]
         return LiteLLMEngine(model_string=engine_name, **kwargs)
+    if engine_name.startswith("local:"):
+        engine_name = engine_name.split("local:")[1]
+        if engine_name.startswith("vertex_ai"):
+            return LocalVertex(model_string=engine_name, **kwargs)
+        else:
+            return LocalChatOpenAI(model_string=engine_name, **kwargs)
     if engine_name.startswith("azure"):
         from .openai import AzureChatOpenAI
         # remove engine_name "azure-" prefix
@@ -79,7 +93,7 @@ def get_engine(engine_name: str, **kwargs) -> EngineLM:
         from .groq import ChatGroq
         engine_name = engine_name.replace("groq-", "")
         return ChatGroq(model_string=engine_name, **kwargs)
-    elif "server-" in engine_name: 
+    elif "server-" in engine_name:
         from .openai import VllmServer
         return VllmServer(model_string=engine_name, is_multimodal=_check_if_multimodal(engine_name), **kwargs)
     else:
