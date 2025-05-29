@@ -1,6 +1,10 @@
+import re
+from typing import Any
+
 import textgrad as tg
 from textgrad.optimizer import TextualGradientDescent
 from reward_model import TPORewardModel
+from run_v2 import _GET_CHOICE
 
 ############################################################
 # Prompt Templates
@@ -83,18 +87,17 @@ def run_test_time_training_bon(query: str,
 # Test-time Preference Optimization (TPO)
 ############################################################
 
-def run_test_time_training_tpo(query: str,
-                               golden_answer: str,
+def run_test_time_training_tpo(data,
                                llm_engine,
                                evaluator_model,
                                gen_params: dict,
                                tpo_mode: str = "tpo",
-                               max_iters: int = 5) -> dict:
+                               max_iters: int = 5) -> Any:
     """
     Runs the Test-time Preference Optimization (TPO) process by repeatedly
     refining the chosen response according to reward model feedback.
 
-    :param query: The user query (string).
+    :param data: The user query (string).
     :param llm_engine: LLM inference engine from textgrad.
     :param evaluator_model: Evaluator model.
     :param gen_params: Generation parameters for sampling responses.
@@ -102,6 +105,9 @@ def run_test_time_training_tpo(query: str,
     :param max_iters: Number of optimization iterations to perform.
     :return: Dictionary of all scored (query, answer) pairs.
     """
+    query = data["task"]
+    golden_answer = data["golden_answer"]
+
     tg.set_backward_engine(llm_engine, override=True)
     all_scores = {}
 
@@ -171,4 +177,38 @@ def run_test_time_training_tpo(query: str,
             )
         loss_fn = tg.TextLoss(evaluation_sys_text)
 
-    return all_scores
+    prediction = response.value
+    get_choice = _GET_CHOICE.format(task=data["task"], answer=prediction)
+    choice_response = llm_engine(get_choice)
+
+    choice = normalize_answer(extract_answer(choice_response)).upper().strip()
+    answer = data["answer"].upper().strip()
+    return {
+        "task": data["task"],
+        "answer": answer,
+        "choice": choice,
+    }, 1 if choice == answer else 0
+
+
+def extract_answer(text: str) -> str:
+    match = re.search(r"<Answer>\s*(.*?)\s*</Answer>", text, re.DOTALL)
+    if match:
+        return match.group(1)
+    return "None"
+
+
+def is_numeric(s: str) -> bool:
+    """Check if a string represents a number."""
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def normalize_answer(answer: str) -> Any:
+    """Normalize answer by converting to number if possible."""
+    answer = answer.strip().upper()
+    if is_numeric(answer):
+        return float(answer)
+    return answer
