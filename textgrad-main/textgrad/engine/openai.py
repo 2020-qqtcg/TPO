@@ -1,7 +1,12 @@
+from types import SimpleNamespace
+
+import requests
+
 try:
     from openai import OpenAI, AzureOpenAI
 except ImportError:
-    raise ImportError("If you'd like to use OpenAI models, please install the openai package by running `pip install openai`, and add 'OPENAI_API_KEY' to your environment variables.")
+    raise ImportError(
+        "If you'd like to use OpenAI models, please install the openai package by running `pip install openai`, and add 'OPENAI_API_KEY' to your environment variables.")
 
 import os
 import json
@@ -25,16 +30,17 @@ OLLAMA_BASE_URL = 'http://localhost:11434/v1'
 if os.getenv("OLLAMA_BASE_URL"):
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 
+
 class ChatOpenAI(EngineLM, CachedEngine):
     DEFAULT_SYSTEM_PROMPT = "You are a helpful, creative, and smart assistant."
 
     def __init__(
-        self,
-        model_string: str="gpt-3.5-turbo-0613",
-        system_prompt: str=DEFAULT_SYSTEM_PROMPT,
-        is_multimodal: bool=False,
-        base_url: str=None,
-        **kwargs):
+            self,
+            model_string: str = "gpt-3.5-turbo-0613",
+            system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+            is_multimodal: bool = False,
+            base_url: str = None,
+            **kwargs):
         """
         :param model_string:
         :param system_prompt:
@@ -47,11 +53,12 @@ class ChatOpenAI(EngineLM, CachedEngine):
 
         self.system_prompt = system_prompt
         self.base_url = base_url
-        
+
         if not base_url:
             if os.getenv("OPENAI_API_KEY") is None:
-                raise ValueError("Please set the OPENAI_API_KEY environment variable if you'd like to use OpenAI models.")
-            
+                raise ValueError(
+                    "Please set the OPENAI_API_KEY environment variable if you'd like to use OpenAI models.")
+
             self.client = OpenAI(
                 api_key=os.getenv("OPENAI_API_KEY")
             )
@@ -67,19 +74,19 @@ class ChatOpenAI(EngineLM, CachedEngine):
         self.is_multimodal = is_multimodal
 
     @retry(wait=wait_random_exponential(min=1, max=5), stop=stop_after_attempt(5))
-    def generate(self, content: Union[str, List[Union[str, bytes]]], system_prompt: str=None, **kwargs):
+    def generate(self, content: Union[str, List[Union[str, bytes]]], system_prompt: str = None, **kwargs):
         if isinstance(content, str):
             return self._generate_from_single_prompt(content, system_prompt=system_prompt, **kwargs)
-        
+
         elif isinstance(content, list):
             has_multimodal_input = any(isinstance(item, bytes) for item in content)
             if (has_multimodal_input) and (not self.is_multimodal):
                 raise NotImplementedError("Multimodal generation is only supported for Claude-3 and beyond.")
-            
+
             return self._generate_from_multiple_input(content, system_prompt=system_prompt, **kwargs)
 
     def _generate_from_single_prompt(
-        self, prompt: str, system_prompt: str=None, temperature=0, max_tokens=2000, top_p=0.99
+            self, prompt: str, system_prompt: str = None, temperature=0, max_tokens=2000, top_p=0.99
     ):
 
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
@@ -134,7 +141,7 @@ class ChatOpenAI(EngineLM, CachedEngine):
         return formatted_content
 
     def _generate_from_multiple_input(
-        self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=2000, top_p=0.99
+            self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=2000, top_p=0.99
     ):
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
         formatted_content = self._format_content(content)
@@ -160,14 +167,12 @@ class ChatOpenAI(EngineLM, CachedEngine):
         return response_text
 
 
-
-
 class AzureChatOpenAI(ChatOpenAI):
     def __init__(
-        self,
-        model_string="gpt-35-turbo",
-        system_prompt=ChatOpenAI.DEFAULT_SYSTEM_PROMPT,
-        **kwargs):
+            self,
+            model_string="gpt-35-turbo",
+            system_prompt=ChatOpenAI.DEFAULT_SYSTEM_PROMPT,
+            **kwargs):
         """
         Initializes an interface for interacting with Azure's OpenAI models.
 
@@ -186,15 +191,17 @@ class AzureChatOpenAI(ChatOpenAI):
             ValueError: If the AZURE_OPENAI_API_KEY environment variable is not set.
         """
         root = platformdirs.user_cache_dir("textgrad")
-        cache_path = os.path.join(root, f"cache_azure_{model_string}.db")  # Changed cache path to differentiate from OpenAI cache
+        cache_path = os.path.join(root,
+                                  f"cache_azure_{model_string}.db")  # Changed cache path to differentiate from OpenAI cache
 
         super().__init__(cache_path=cache_path, system_prompt=system_prompt, **kwargs)
 
         self.system_prompt = system_prompt
         api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2023-07-01-preview")
         if os.getenv("AZURE_OPENAI_API_KEY") is None:
-            raise ValueError("Please set the AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_BASE, and AZURE_OPENAI_API_VERSION environment variables if you'd like to use Azure OpenAI models.")
-        
+            raise ValueError(
+                "Please set the AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_BASE, and AZURE_OPENAI_API_VERSION environment variables if you'd like to use Azure OpenAI models.")
+
         self.client = AzureOpenAI(
             api_version=api_version,
             api_key=os.getenv("AZURE_OPENAI_API_KEY"),
@@ -204,19 +211,18 @@ class AzureChatOpenAI(ChatOpenAI):
         self.model_string = model_string
 
 
-
-
 class VllmServer(EngineLM, CachedEngine):
     DEFAULT_SYSTEM_PROMPT = "You are a helpful, creative, and smart assistant."
+
     def __init__(
-        self,
-        model_string: str="gpt-3.5-turbo-0613",
-        system_prompt: str=DEFAULT_SYSTEM_PROMPT,
-        is_multimodal: bool=False,
-        base_url: str=None,
-        api_key: str=None,
-        max_tokens: int=8192,
-        **kwargs):
+            self,
+            model_string: str = "gpt-3.5-turbo-0613",
+            system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+            is_multimodal: bool = False,
+            base_url: str = None,
+            api_key: str = None,
+            max_tokens: int = 8192,
+            **kwargs):
         """
         :param model_string:
         :param system_prompt:
@@ -229,32 +235,31 @@ class VllmServer(EngineLM, CachedEngine):
 
         self.system_prompt = system_prompt
         self.base_url = base_url
-        
 
         self.client = OpenAI(
             base_url=base_url,
             api_key=api_key
         )
 
-
         self.model_string = model_string.replace("server-", "")
-        self.max_tokens = max_tokens # max_tokens for the general vllm server for all forward passes, including loss(), grad() and step(); will override forward params by min() function
+        self.max_tokens = max_tokens  # max_tokens for the general vllm server for all forward passes, including loss(), grad() and step(); will override forward params by min() function
         self.is_multimodal = is_multimodal
 
     @retry(wait=wait_random_exponential(min=1, max=5), stop=stop_after_attempt(5))
-    def generate(self, content: Union[str, List[Union[str, bytes]]], system_prompt: str=None, **kwargs):
+    def generate(self, content: Union[str, List[Union[str, bytes]]], system_prompt: str = None, **kwargs):
         if isinstance(content, str):
             return self._generate_from_single_prompt(content, system_prompt=system_prompt, **kwargs)
-        
+
         elif isinstance(content, list):
             has_multimodal_input = any(isinstance(item, bytes) for item in content)
             if (has_multimodal_input) and (not self.is_multimodal):
                 raise NotImplementedError("Multimodal generation is only supported for Claude-3 and beyond.")
-            
+
             return self._generate_from_multiple_input(content, system_prompt=system_prompt, **kwargs)
 
     def _generate_from_single_prompt(
-        self, prompt: str, system_prompt: str=None, temperature=0.7, min_tokens=16, max_tokens=8192, top_p=0.99, n=1, seed=None
+            self, prompt: str, system_prompt: str = None, temperature=0.7, min_tokens=16, max_tokens=8192, top_p=0.99,
+            n=1, seed=None
     ):
 
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
@@ -313,7 +318,7 @@ class VllmServer(EngineLM, CachedEngine):
         return formatted_content
 
     def _generate_from_multiple_input(
-        self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=2048, top_p=0.99
+            self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=2048, top_p=0.99
     ):
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
         formatted_content = self._format_content(content)
@@ -337,4 +342,114 @@ class VllmServer(EngineLM, CachedEngine):
         response_text = response.choices[0].message.content
         # self._save_cache(cache_key, response_text)
         return response_text
-    
+
+
+class LocalChatOpenAI(EngineLM, CachedEngine):
+    DEFAULT_SYSTEM_PROMPT = "You are a helpful, creative, and smart assistant."
+
+    def __init__(
+            self,
+            model_string: str = "gpt-3.5-turbo",
+            system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+            base_url: str = "http://127.0.0.1:9999",
+            **kwargs):
+        """
+        Initialize a LocalChatOpenAI instance for interacting with a locally hosted GPT API.
+
+        Args:
+            model_string (str): Model name to use (default: "gpt-3.5-turbo")
+            system_prompt (str): Default system prompt to use
+            base_url (str): Base URL of the local GPT API
+            **kwargs: Additional arguments to pass to the parent class
+        """
+        root = platformdirs.user_cache_dir("textgrad")
+        cache_path = os.path.join(root, f"cache_local_{model_string}.db")
+
+        super().__init__(cache_path=cache_path)
+
+        self.system_prompt = system_prompt
+        self.base_url = base_url
+        self.model_string = model_string
+
+    @retry(wait=wait_random_exponential(min=1, max=5), stop=stop_after_attempt(5))
+    def generate(self, content: str, system_prompt: str = None, temperature=0.0, max_tokens=2000, top_p=0.99, **kwargs):
+        """
+        Generate a response from the local GPT service.
+
+        Args:
+            content (str): The prompt to generate from
+            system_prompt (str, optional): System prompt to use. If None, uses the default.
+            temperature (float): Sampling temperature
+            max_tokens (int): Maximum number of tokens to generate
+            top_p (float): Sampling top-p value
+            **kwargs: Additional arguments to pass to the API
+
+        Returns:
+            str: The generated response
+        """
+        sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
+
+        messages = [
+            {"role": "system", "content": sys_prompt_arg},
+            {"role": "user", "content": content}
+        ]
+
+        response = chat_with_local_gpt(
+            messages=messages,
+            model=self.model_string,
+            temperature=temperature,
+            top_p=top_p,
+            base_url=self.base_url
+        )
+
+        return response
+
+    def __call__(self, prompt, **kwargs):
+        return self.generate(prompt, **kwargs)
+
+
+def chat_with_local_gpt(
+        messages,
+        model="gpt-3.5-turbo",
+        temperature=0.0,
+        top_p=0.0,
+        base_url="http://127.0.0.1:9999",
+):
+    """
+    Sends a chat completion request to a locally hosted GPT API.
+
+    Args:
+        messages (list): List of message dicts, e.g., [{"role": "user", "content": "Hello"}]
+        model (str): Model name (default "gpt-3.5-turbo")
+        temperature (float): Sampling temperature (default 1.0)
+        top_p (float): Sampling top-p (default 1.0)
+        base_url (str): Base URL of the API
+
+    Returns:
+        str: Parsed response object with dot-accessible attributes
+    """
+    try:
+
+        response = requests.post(
+            f"{base_url}/chat",
+            json={
+                "messages": messages,
+                "model": model,
+                "temperature": temperature,
+                "top_p": top_p,
+            },
+            timeout=120
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        # 判断 response 是 dict 还是 list
+        response_data = result["response"]
+        if isinstance(response_data, dict):
+            response_data = SimpleNamespace(**response_data)
+        return response_data[0]
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Error contacting local GPT service: {e}")
+    except KeyError:
+        raise RuntimeError(f"Invalid response format from GPT service: {response.text}")

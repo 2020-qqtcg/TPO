@@ -84,8 +84,9 @@ def run_test_time_training_bon(query: str,
 ############################################################
 
 def run_test_time_training_tpo(query: str,
+                               golden_answer: str,
                                llm_engine,
-                               rm: TPORewardModel,
+                               evaluator_model,
                                gen_params: dict,
                                tpo_mode: str = "tpo",
                                max_iters: int = 5) -> dict:
@@ -95,7 +96,7 @@ def run_test_time_training_tpo(query: str,
 
     :param query: The user query (string).
     :param llm_engine: LLM inference engine from textgrad.
-    :param rm: TPORewardModel for scoring.
+    :param evaluator_model: Evaluator model.
     :param gen_params: Generation parameters for sampling responses.
     :param tpo_mode: Mode of TPO - 'tpo', 'revision', or 'bon'.
     :param max_iters: Number of optimization iterations to perform.
@@ -104,31 +105,9 @@ def run_test_time_training_tpo(query: str,
     tg.set_backward_engine(llm_engine, override=True)
     all_scores = {}
 
-    def _update_cache(sample_resps: list, score_db: dict, index:int):
-        # Compute scores for new responses
-        sample_qas_ = [(query, resp) for resp in sample_resps]
-        sample_scores_ = rm.perform_rm(sample_qas_)
-        cache_scores(score_db, sample_scores_, sample_qas_, index=index)
-
-        # Flatten the cached data into (q, a, score) list
-        merged = []
-        for k, v in score_db.items():
-            # k looks like 'INDEX-1<SEP>{q}<SEP>{a}'
-            _, q_, a_ = k.split("<SEP>")
-            merged.append((q_, a_, v))
-
-        # Identify best and worst samples from the updated cache
-        sample_scores_vals = [m[2] for m in merged]
-        sample_qas_vals = [(m[0], m[1]) for m in merged]
-
-        contrastive_responses, _ = rm.get_contrastive_samples(sample_scores_vals, sample_qas_vals)
-        chosen_resp_text = contrastive_responses['best']
-        rej_resp_text = contrastive_responses['worst']
-        return chosen_resp_text, rej_resp_text
-
     # 1) Initial sampling for candidates
     init_responses = llm_engine(query, **gen_params)
-    chosen_resp_text, rej_resp_text = _update_cache(init_responses, all_scores, index=-1)
+    chosen_resp_text, rej_resp_text = evaluator_model.get_contrastive_samples(query, golden_answer, init_responses)
 
     # 2) Define the variable to be optimized
     response_role = ("a model response to a user query"
@@ -178,7 +157,7 @@ def run_test_time_training_tpo(query: str,
         new_responses = optimizer.step(**gen_params)
 
         # 6.4) Update cache with new responses, get chosen and rejected
-        chosen_resp_text, rej_resp_text = _update_cache(new_responses, all_scores, index=i)
+        chosen_resp_text, rej_resp_text = evaluator_model.get_contrastive_samples(query, golden_answer, new_responses)
 
         # 6.5) Update the variable's content
         response.set_value(chosen_resp_text)

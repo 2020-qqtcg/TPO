@@ -17,13 +17,12 @@ from tpo_utils import (
 )
 
 
-
-
 def set_random(seed: int = 7) -> None:
     """
     Sets the global random seed for reproducibility.
     """
     random.seed(seed)
+
 
 VALID_TPO_MODES = ["tpo", "revision", "bon"]
 
@@ -68,12 +67,12 @@ if __name__ == "__main__":
     args = config()
     assert args.tpo_mode in VALID_TPO_MODES, f"Invalid TPO mode: {args.tpo_mode}"
     os.makedirs(args.output_path, exist_ok=True)
-    
+
     # Set random seed
     set_random(args.seed)
 
     # Construct model name and engine
-    model_name = f"server-{args.server_model}"
+    model_name = f"local:{args.server_model}"
     llm_engine = tg.get_engine(
         model_name,
         base_url=f"http://{args.ip}:{args.port}/v1",
