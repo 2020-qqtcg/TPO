@@ -51,63 +51,35 @@ class LocalVertex(EngineLM, CachedEngine):
         except json.JSONDecodeError:
             raise ValueError(f"Invalid JSON in config file at {config_path}")
 
-    def generate(self, content: Union[str, List[Union[str, bytes]]], system_prompt: str = None, **kwargs):
-        if isinstance(content, str):
-            return self._generate_from_single_prompt(content, system_prompt=system_prompt, **kwargs)
-        elif isinstance(content, list):
-            return self._generate_from_multiple_input(content, system_prompt=system_prompt, **kwargs)
-
-    def _generate_from_single_prompt(
-            self, prompt: str, system_prompt: str = None, temperature=0, max_tokens=8192, top_p=0.99, **kwargs
+    def generate(
+        self, prompt, system_prompt=None, temperature=0.7, max_tokens=4096, top_p=0.95, n=1
     ):
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
+        cache_or_none = self._check_cache(sys_prompt_arg + prompt)
+        if cache_or_none is not None:
+            return cache_or_none
 
-        messages = [
-            {"role": "system", "content": sys_prompt_arg},
-            {"role": "user", "content": prompt}
-        ]
+        messages = []
+        if sys_prompt_arg:
+            messages.append({"role": "system", "content": sys_prompt_arg})
+        messages.append({"role": "user", "content": prompt})
 
         response = completion(
             model=self.model_string,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            # top_p=top_p,
+            n=n,
             vertex_project=self.vertex_project_id,
             vertex_location=self.vertex_location
         )
 
-        response_text = response.choices[0].message.content
-        return response_text
-
-    def _generate_from_multiple_input(
-            self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=8192, top_p=0.99, **kwargs
-    ):
-        sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
-        responses = []
-
-        # Process each content item separately
-        for item in content:
-            if not isinstance(item, str):
-                raise ValueError("Multimodal input is not supported for Vertex AI models")
-
-            # Create messages for this single item
-            messages = [
-                {"role": "system", "content": sys_prompt_arg},
-                {"role": "user", "content": item}
-            ]
-
-            response = completion(
-                model=self.model_string,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                vertex_project=self.vertex_project_id,
-                vertex_location=self.vertex_location
-            )
-
-            responses.append(response.choices[0].message.content)
-
-        return responses
+        if n > 1:
+            return [choice.message.content for choice in response.choices]
+        else:
+            response_text = response.choices[0].message.content
+            return response_text
 
     def __call__(self, prompt, **kwargs):
         return self.generate(prompt, **kwargs)
