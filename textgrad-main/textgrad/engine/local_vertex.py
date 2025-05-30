@@ -64,20 +64,32 @@ class LocalVertex(EngineLM, CachedEngine):
             messages.append({"role": "system", "content": sys_prompt_arg})
         messages.append({"role": "user", "content": prompt})
 
-        response = completion(
-            model=self.model_string,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            # top_p=top_p,
-            n=n,
-            vertex_project=self.vertex_project_id,
-            vertex_location=self.vertex_location
-        )
-
         if n > 1:
-            return [choice.message.content for choice in response.choices]
+            responses = []
+            for _ in range(n):
+                response = completion(
+                    model=self.model_string,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    # top_p=top_p,
+                    vertex_project=self.vertex_project_id,
+                    vertex_location=self.vertex_location,
+                    **kwargs
+                )
+                responses.append(response.choices[0].message.content)
+            return responses
         else:
+            response = completion(
+                model=self.model_string,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                # top_p=top_p,
+                vertex_project=self.vertex_project_id,
+                vertex_location=self.vertex_location,
+                **kwargs
+            )
             response_text = response.choices[0].message.content
             return response_text
 
