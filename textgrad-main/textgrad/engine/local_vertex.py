@@ -1,8 +1,27 @@
 import os
 import json
+import time
 from typing import Union, List
 from litellm import completion
 from .base import EngineLM, CachedEngine
+
+
+def retry_with_sleep(max_retries=5, sleep_time=10):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    retries += 1
+                    if retries == max_retries:
+                        raise e
+                    print(f"Request failed, retrying in {sleep_time} seconds... (Attempt {retries}/{max_retries})")
+                    time.sleep(sleep_time)
+            return None
+        return wrapper
+    return decorator
 
 
 class LocalVertex(EngineLM, CachedEngine):
@@ -51,6 +70,19 @@ class LocalVertex(EngineLM, CachedEngine):
         except json.JSONDecodeError:
             raise ValueError(f"Invalid JSON in config file at {config_path}")
 
+    @retry_with_sleep(max_retries=5, sleep_time=10)
+    def _make_completion_request(self, messages, temperature, max_tokens, **kwargs):
+        return completion(
+            model=self.model_string,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            # top_p=top_p,
+            vertex_project=self.vertex_project_id,
+            vertex_location=self.vertex_location,
+            **kwargs
+        )
+
     def generate(
         self, prompt, system_prompt=None, temperature=0.7, max_tokens=4096, top_p=0.95, n=1, **kwargs
     ):
@@ -67,27 +99,19 @@ class LocalVertex(EngineLM, CachedEngine):
         if n > 1:
             responses = []
             for _ in range(n):
-                response = completion(
-                    model=self.model_string,
+                response = self._make_completion_request(
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
-                    # top_p=top_p,
-                    vertex_project=self.vertex_project_id,
-                    vertex_location=self.vertex_location,
                     **kwargs
                 )
                 responses.append(response.choices[0].message.content)
             return responses
         else:
-            response = completion(
-                model=self.model_string,
+            response = self._make_completion_request(
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                # top_p=top_p,
-                vertex_project=self.vertex_project_id,
-                vertex_location=self.vertex_location,
                 **kwargs
             )
             response_text = response.choices[0].message.content
