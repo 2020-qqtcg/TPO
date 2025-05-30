@@ -13,11 +13,10 @@ from dataset.gpqa import GPQA, GET_CHOICE
 from dataset.gsm8k import GSM8KDSPY, GET_CHOICE_GSM8K
 from dataset.mmlu import MMLU
 from evaluator_model import TPOEvaluatorModel
-from reward_model import TPORewardModel
+# from reward_model import TPORewardModel
 
 # Import TPO methods from test_time_training.py
 from tpo_utils import (
-    run_test_time_training_bon,
     run_test_time_training_tpo
 )
 
@@ -90,7 +89,7 @@ if __name__ == "__main__":
 
     # Load data
     dataset_name = args.data_path
-    global _GET_CHOICE
+    # global _GET_CHOICE
     dataset = []
     if dataset_name.startswith('gpqa'):
         dataset = GPQA(subset=dataset_name).filterd_data

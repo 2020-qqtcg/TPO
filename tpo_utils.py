@@ -3,8 +3,7 @@ from typing import Any
 
 import textgrad as tg
 from textgrad.optimizer import TextualGradientDescent
-from reward_model import TPORewardModel
-from run_v2 import _GET_CHOICE
+# from reward_model import TPORewardModel
 
 ############################################################
 # Prompt Templates
@@ -57,7 +56,7 @@ def cache_scores(score_cache: dict,
 
 def run_test_time_training_bon(query: str,
                                llm_engine,
-                               rm: TPORewardModel,
+                               rm,
                                gen_params: dict,
                                **kwargs) -> dict:
     """
@@ -177,6 +176,7 @@ def run_test_time_training_tpo(data,
             )
         loss_fn = tg.TextLoss(evaluation_sys_text)
 
+    from run_v2 import _GET_CHOICE
     prediction = response.value
     get_choice = _GET_CHOICE.format(task=data["task"], answer=prediction)
     choice_response = llm_engine(get_choice)

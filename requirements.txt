@@ -22,4 +22,3 @@ tenacity==9.0.0
 torch==2.4.0
 tqdm==4.67.1
 transformers==4.48.0
-vllm==0.6.3

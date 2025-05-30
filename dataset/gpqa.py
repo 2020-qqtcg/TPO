@@ -60,7 +60,7 @@ class GPQA:
             self.filterd_data.append({
                 "task": task,
                 "answer": answer,
-                "goledn_answer": row["Explanation"]
+                "golden_answer": row["Explanation"]
             })
 
         if subset == "gpqa_main":

@@ -12,7 +12,7 @@ class LocalVertex(EngineLM, CachedEngine):
             self,
             model_string: str = "vertex_ai/gemini-pro",
             system_prompt: str = DEFAULT_SYSTEM_PROMPT,
-            config_path: str = "config.json",
+            config_path: str = r"C:\Users\ufo\zooptimization\optimization\config\vertex_config.json",
             **kwargs):
         """
         Initialize LocalVertex with Vertex AI configuration from config file
@@ -58,7 +58,7 @@ class LocalVertex(EngineLM, CachedEngine):
             return self._generate_from_multiple_input(content, system_prompt=system_prompt, **kwargs)
 
     def _generate_from_single_prompt(
-            self, prompt: str, system_prompt: str = None, temperature=0, max_tokens=8192, top_p=0.99
+            self, prompt: str, system_prompt: str = None, temperature=0, max_tokens=8192, top_p=0.99, **kwargs
     ):
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
 
@@ -80,7 +80,7 @@ class LocalVertex(EngineLM, CachedEngine):
         return response_text
 
     def _generate_from_multiple_input(
-            self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=8192, top_p=0.99
+            self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=8192, top_p=0.99, **kwargs
     ):
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
         responses = []
