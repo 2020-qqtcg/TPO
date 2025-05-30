@@ -52,7 +52,7 @@ class LocalVertex(EngineLM, CachedEngine):
             raise ValueError(f"Invalid JSON in config file at {config_path}")
 
     def generate(
-        self, prompt, system_prompt=None, temperature=0.7, max_tokens=4096, top_p=0.95, n=1
+        self, prompt, system_prompt=None, temperature=0.7, max_tokens=4096, top_p=0.95, n=1, **kwargs
     ):
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
         cache_or_none = self._check_cache(sys_prompt_arg + prompt)
