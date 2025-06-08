@@ -91,11 +91,13 @@ def run_test_time_training_tpo(data,
                                evaluator_model,
                                gen_params: dict,
                                tpo_mode: str = "tpo",
-                               max_iters: int = 5) -> Any:
+                               max_iters: int = 5,
+                               get_choice_prompt: str = "") -> Any:
     """
     Runs the Test-time Preference Optimization (TPO) process by repeatedly
     refining the chosen response according to reward model feedback.
 
+    :param get_choice_prompt: Use llm get final answer
     :param data: The user query (string).
     :param llm_engine: LLM inference engine from textgrad.
     :param evaluator_model: Evaluator model.
@@ -108,7 +110,6 @@ def run_test_time_training_tpo(data,
     golden_answer = data["golden_answer"]
 
     tg.set_backward_engine(llm_engine, override=True)
-    all_scores = {}
 
     # 1) Initial sampling for candidates
     init_responses = llm_engine(query, **gen_params)
@@ -176,9 +177,8 @@ def run_test_time_training_tpo(data,
             )
         loss_fn = tg.TextLoss(evaluation_sys_text)
 
-    from run_v2 import _GET_CHOICE
     prediction = response.value
-    get_choice = _GET_CHOICE.format(task=data["task"], answer=prediction)
+    get_choice = get_choice_prompt.format(task=data["task"], answer=prediction)
     choice_response = llm_engine(get_choice)
 
     choice = normalize_answer(extract_answer(choice_response)).upper().strip()

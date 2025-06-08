@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
     # Prepare output path
     model_suffix = model_name.split("/")[-1]
-    reward_suffix = evaluator_model.split("/")[-1]
+    reward_suffix = evaluator_model.split(":")[-1]
     out_path = (
         f"{args.output_path}/{dataset_name}_model_{model_suffix}_mode_{args.tpo_mode}_"
         f"rm_{reward_suffix}_max_iters{args.max_iterations}_"
@@ -165,6 +165,7 @@ if __name__ == "__main__":
                     gen_params=diverse_gen_params,
                     tpo_mode=args.tpo_mode,
                     max_iters=args.max_iterations,
+                    get_choice_prompt=_GET_CHOICE,
                 )
                 futures.append(future)
 
